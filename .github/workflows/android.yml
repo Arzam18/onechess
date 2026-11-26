@@ -1,0 +1,40 @@
+name: Build Android ARM64 (NEON)
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Onechess Android ARM64 / NEON
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: true
+          packages: platform-tools
+
+      - name: Install Android NDK
+        run: |
+          sdkmanager --install "ndk;27.2.12479018"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> "$GITHUB_ENV"
+
+      - name: Build Android ARM64 / NEON
+        run: bash engine/build-android.sh
+
+      - name: Upload Android engine
+        uses: actions/upload-artifact@v4
+        with:
+          name: onechess-android-arm64-neon
+          path: engine/bin/onechess-android-arm64-neon
+          if-no-files-found: error
+          retention-days: 30
