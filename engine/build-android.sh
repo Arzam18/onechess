@@ -12,10 +12,11 @@ fi
 
 TOOLCHAIN="${NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin"
 CXX="${TOOLCHAIN}/aarch64-linux-android24-clang++"
+CC="${TOOLCHAIN}/aarch64-linux-android24-clang"
 READELF="${TOOLCHAIN}/llvm-readelf"
 NM="${TOOLCHAIN}/llvm-nm"
-if [[ ! -x "${CXX}" ]]; then
-    echo "ERROR: Android ARM64 C++ compiler not found: ${CXX}" >&2
+if [[ ! -x "${CXX}" || ! -x "${CC}" ]]; then
+    echo "ERROR: Android ARM64 compiler not found in ${TOOLCHAIN}." >&2
     exit 1
 fi
 
@@ -31,14 +32,18 @@ test -s "${NETWORK}"
 
 cd "${ENGINE_DIR}"
 OUT="bin/onechess-android-arm64-neon"
+EMBED_OBJ="bin/nnue-embedded.o"
+printf 'Building the standalone NNUE embedding object...\n'
+"${CC}" -c -fPIC -o "${EMBED_OBJ}" nnue-embedded.S
+
 printf 'Building Onechess for Android ARM64/NEON...\n'
 "${CXX}" \
     -std=c++20 -O3 -DNDEBUG -flto=thin -fno-exceptions \
     -march=armv8-a+simd \
     -pthread -fPIE -ffunction-sections -fdata-sections \
     -static-libstdc++ -Wl,--gc-sections -Wl,-z,max-page-size=16384 \
-    -DONE_FIGE -DONE_RESEAU='"onechess.nnue"' \
-    -Ifathom src/*.cpp fathom/tbprobe.c \
+    -DONE_FIGE -DONE_RESEAU='"onechess.nnue"' -DONE_RESEAU_EXTERNAL \
+    -Ifathom src/*.cpp fathom/tbprobe.c "${EMBED_OBJ}" \
     -pie -o "${OUT}"
 
 # Confirm this is an AArch64 Android executable and that the embedded NNUE
