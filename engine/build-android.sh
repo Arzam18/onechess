@@ -47,16 +47,20 @@ printf 'Building Onechess for Android ARM64/NEON...\n'
     -pie -o "${OUT}"
 
 # Confirm this is an AArch64 Android executable and that the embedded NNUE
-# boundaries survived linking. This catches accidental PSQT-only builds.
-"${READELF}" -h "${OUT}" | grep -Eq 'Machine:.*AArch64' || {
+# boundaries survived linking. Capture tool output before grepping: with
+# `set -o pipefail`, `nm | grep -q` can report a false failure when grep exits
+# early and nm receives SIGPIPE on a large symbol table.
+ELF_HEADER="$("${READELF}" -h "${OUT}")"
+grep -Eq 'Machine:.*AArch64' <<< "${ELF_HEADER}" || {
     echo "ERROR: output is not an AArch64 executable." >&2
     exit 1
 }
-"${NM}" -g "${OUT}" | grep -q 'one_reseau_debut' || {
+SYMBOL_TABLE="$("${NM}" -g "${OUT}")"
+grep -Eq '[[:space:]]one_reseau_debut$' <<< "${SYMBOL_TABLE}" || {
     echo "ERROR: embedded NNUE start symbol is missing." >&2
     exit 1
 }
-"${NM}" -g "${OUT}" | grep -q 'one_reseau_fin' || {
+grep -Eq '[[:space:]]one_reseau_fin$' <<< "${SYMBOL_TABLE}" || {
     echo "ERROR: embedded NNUE end symbol is missing." >&2
     exit 1
 }
