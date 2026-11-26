@@ -30,7 +30,7 @@
     #define NOMINMAX
     #define WIN32_LEAN_AND_MEAN
     #include <windows.h>
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__ANDROID__)
     #include <sys/mman.h>
 #endif
 
@@ -89,7 +89,15 @@ void aligned_large_pages_free(void* bloc) {
 void* aligned_large_pages_alloc(std::size_t octets) {
     constexpr std::size_t deuxMo = std::size_t(1) << 21;
     const std::size_t     taille = (octets + deuxMo - 1) & ~(deuxMo - 1);
-    void*                 bloc   = std::aligned_alloc(deuxMo, taille);
+    #if defined(__ANDROID__)
+    // Android API 24 does not expose aligned_alloc() (added at API 28).
+    // posix_memalign() provides the same alignment and is available on API 17+.
+    void* bloc = nullptr;
+    if (posix_memalign(&bloc, deuxMo, taille) != 0)
+        bloc = nullptr;
+    #else
+    void* bloc = std::aligned_alloc(deuxMo, taille);
+    #endif
     #if defined(MADV_HUGEPAGE)
     if (bloc)
         madvise(bloc, taille, MADV_HUGEPAGE);
