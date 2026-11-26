@@ -8,6 +8,7 @@
 #include <iostream>
 #include <cassert>
 #include <cstring>
+#include <cstdint>
 #include <memory>
 #include <cstdio>
 #include <cstdlib>
@@ -920,7 +921,13 @@ __asm__(".section .rodata\n"
         ".byte 0\n"
         ".text\n");
 #endif
-bool has_embedded() { return one_reseau_fin > one_reseau_debut; }
+bool has_embedded() {
+    // These are linker labels delimiting one byte range, not two C++ arrays.
+    // Compare their numeric addresses rather than unrelated array pointers.
+    const auto debut = reinterpret_cast<std::uintptr_t>(&one_reseau_debut[0]);
+    const auto fin   = reinterpret_cast<std::uintptr_t>(&one_reseau_fin[0]);
+    return fin > debut;
+}
 #else
 bool has_embedded() { return false; }
 #endif
@@ -936,8 +943,10 @@ bool load(const std::string& path) {
     // nom par defaut introuvable : le reseau integre (un autre nom introuvable reste une erreur)
     if (path == "onechess.nnue" && has_embedded())
     {
-        std::istringstream s(std::string(reinterpret_cast<const char*>(one_reseau_debut),
-                                         std::size_t(one_reseau_fin - one_reseau_debut)));
+        const auto debut = reinterpret_cast<std::uintptr_t>(&one_reseau_debut[0]);
+        const auto fin   = reinterpret_cast<std::uintptr_t>(&one_reseau_fin[0]);
+        const auto taille = static_cast<std::size_t>(fin - debut);
+        std::istringstream s(std::string(reinterpret_cast<const char*>(debut), taille));
         return charger(s, "(reseau integre)");
     }
 #endif
