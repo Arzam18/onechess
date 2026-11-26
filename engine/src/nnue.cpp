@@ -906,6 +906,10 @@ static bool charger(std::istream& f, const std::string& path);
 // ecrite pour Onechess) ; sans cette macro, rien n'est integre.
 #if defined(ONE_RESEAU)
 extern "C" const unsigned char one_reseau_debut[], one_reseau_fin[];
+// Most builds keep the original inline-assembler embedding path. Android's
+// Clang ThinLTO can discard the labels emitted by file-scope inline assembly,
+// so its build defines ONE_RESEAU_EXTERNAL and links engine/nnue-embedded.S.
+#if !defined(ONE_RESEAU_EXTERNAL)
 __asm__(".section .rodata\n"
         ".balign 64\n"
         ".globl one_reseau_debut\n"
@@ -915,6 +919,7 @@ __asm__(".section .rodata\n"
         "one_reseau_fin:\n"
         ".byte 0\n"
         ".text\n");
+#endif
 bool has_embedded() { return one_reseau_fin > one_reseau_debut; }
 #else
 bool has_embedded() { return false; }
